@@ -19,6 +19,8 @@ const pool = new Pool({
   connectionString: databaseUrl,
 });
 
+
+
 interface QueryInput {
   query: string;
 }

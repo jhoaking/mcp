@@ -6,6 +6,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { Pool } from "pg";
 
+//let pool: Pool || null
+
 const args = process.argv.slice(2);
 if (args.length === 0) {
   console.error("❌ Debes pasar la URL de conexión, ej:");

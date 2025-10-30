@@ -8,23 +8,18 @@ import { Pool } from "pg";
 
 //let pool: Pool || null
 
-const args = process.argv.slice(2);
-if (args.length === 0) {
-  console.error("❌ Debes pasar la URL de conexión, ej:");
-
-  process.exit(1);
-}
-
-const databaseUrl = args[0];
-
-const pool = new Pool({
-  connectionString: databaseUrl,
-});
-
-
+//const args = process.argv.slice(2);
+//if (args.length === 0) {
+//  console.error("❌ Debes pasar la URL de conexión");
+//
+//  process.exit(1);
+//}
+//
+//const databaseUrl = args[0];
 
 interface QueryInput {
   query: string;
+  connectionString: string;
 }
 
 const server = new Server(
@@ -47,12 +42,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object",
         properties: {
+          connectionString: {
+            type: "string",
+            description:
+              "Cadena de conexión PostgreSQL. Ej: postgres://user:pass@host:5432/db",
+          },
           query: {
             type: "string",
             description: "Consulta SQL a ejecutar",
           },
         },
-        required: ["query"],
+        required: ["connectionString", "query"],
       },
     },
   ],
@@ -63,12 +63,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   if (name === "run_query") {
-    const { query } = args as unknown as QueryInput;
-    if (!query || typeof query !== "string") {
+    const { query, connectionString } = args as unknown as QueryInput;
+    if (!connectionString || !query) {
       return {
-        content: [{ type: "text", text: "❌ Debes enviar un 'query' válido." }],
+        content: [
+          {
+            type: "text",
+            text: "❌ Debes enviar 'connectionString' y 'query'.",
+          },
+        ],
       };
     }
+    const pool = new Pool({
+      connectionString,
+    });
 
     const client = await pool.connect();
     try {
@@ -92,6 +100,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     } finally {
       client.release();
+      await pool.end()
     }
   }
 

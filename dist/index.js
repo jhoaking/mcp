@@ -2,15 +2,6 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 import { Pool } from "pg";
-const args = process.argv.slice(2);
-if (args.length === 0) {
-    console.error("❌ Debes pasar la URL de conexión, ej:");
-    process.exit(1);
-}
-const databaseUrl = args[0];
-const pool = new Pool({
-    connectionString: databaseUrl,
-});
 const server = new Server({
     name: "mcp-postgres",
     version: "1.0.0",
@@ -26,12 +17,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             inputSchema: {
                 type: "object",
                 properties: {
+                    connectionString: {
+                        type: "string",
+                        description: "Cadena de conexión PostgreSQL. Ej: postgres://user:pass@host:5432/db",
+                    },
                     query: {
                         type: "string",
                         description: "Consulta SQL a ejecutar",
                     },
                 },
-                required: ["query"],
+                required: ["connectionString", "query"],
             },
         },
     ],
@@ -40,12 +35,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     if (name === "run_query") {
-        const { query } = args;
-        if (!query || typeof query !== "string") {
+        const { query, connectionString } = args;
+        if (!connectionString || !query) {
             return {
-                content: [{ type: "text", text: "❌ Debes enviar un 'query' válido." }],
+                content: [
+                    {
+                        type: "text",
+                        text: "❌ Debes enviar 'connectionString' y 'query'.",
+                    },
+                ],
             };
         }
+        const pool = new Pool({
+            connectionString,
+        });
         const client = await pool.connect();
         try {
             const isSelect = query.trim().toUpperCase().startsWith("SELECT");
@@ -70,6 +73,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         finally {
             client.release();
+            await pool.end();
         }
     }
     throw new Error(`Unknown tool: ${name}`);

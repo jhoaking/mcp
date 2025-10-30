@@ -92,6 +92,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       } else {
         text = `✅ Query ejecutado correctamente. Filas afectadas: ${result.rowCount}`;
       }
+       return {
+        content: [{ type: "text", text }],
+      };
     } catch (error: any) {
       return {
         content: [
@@ -100,7 +103,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     } finally {
       client.release();
-      await pool.end()
     }
   }
 
